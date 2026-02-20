@@ -182,7 +182,7 @@
  
 
 <script>
-const map = L.map('map').setView([42.2808, -83.7430], 15);
+const map = L.map('map').setView([42.278642, -83.736033], 16);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -194,23 +194,19 @@ const map = L.map('map').setView([42.2808, -83.7430], 15);
       .then(res => res.json())
       .then(data => {
         const layer = L.geoJSON(data).addTo(map);
-        const bounds = layer.getBounds();
-        /* lock min zoom to the full geojson extent */
-        map.setMinZoom(map.getBoundsZoom(bounds));
-        map.fitBounds(bounds);
       })
       .catch(err => console.error('Failed to load GeoJSON:', err));
 
     const extents = {
       central:  { center: [42.278642, -83.736033], zoom: 16 },
-      north:    { center: [42.294214, -83.708653], zoom: 15 },
-      dearborn: { center: [42.319058, -83.231381], zoom: 15 },
-      flint:    { center: [43.019819, -83.689921], zoom: 15 }
+      north:    { center: [42.295040, -83.709576], zoom: 16 },
+      dearborn: { center: [42.319058, -83.231381], zoom: 16 },
+      flint:    { center: [43.019819, -83.689921], zoom: 16 }
     };
 
     function goTo(key, btn) {
       const e = extents[key];
-      map.flyTo(e.center, e.zoom, { duration: 1.5 });
+      map.flyTo(e.center, e.zoom, { duration: 2 });
       document.querySelectorAll('#extent-buttons button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     }
