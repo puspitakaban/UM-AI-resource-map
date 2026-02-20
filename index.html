@@ -62,6 +62,77 @@
 
     #extent-buttons button:hover { background: #3e4255; color: #fff; }
     #extent-buttons button.active { background: #00274C; border-color: #FFCB05; color: #FFCB05; }
+
+
+    /* Map wrapper: column layout to stack toolbar + map + infobar */
+    #map-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Toolbar above map */
+    #toolbar {
+      background: #f5f5f5;
+      border-bottom: 1px solid #ddd;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #toolbar span {
+      font-size: 12px;
+      color: #555;
+    }
+
+    #btn-draw {
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      padding: 5px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all .15s;
+    }
+
+    #btn-draw:hover { border-color: #00274C; color: #00274C; }
+    #btn-draw.active { background: #00274C; color: #FFCB05; border-color: #00274C; }
+
+    #btn-clear {
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      padding: 5px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #888;
+      transition: all .15s;
+    }
+    #btn-clear:hover { border-color: #c00; color: #c00; }
+
+    /* Map itself */
+    #map { flex: 1; }
+
+    /* Info bar below map */
+    #infobar {
+      background: #1a1d26;
+      border-top: 1px solid #2e3140;
+      padding: 7px 16px;
+      display: flex;
+      gap: 24px;
+      font-size: 11px;
+      color: #aaa;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+    }
+
+    #infobar .info-group { display: flex; gap: 6px; align-items: center; }
+    #infobar .info-label { color: #555; text-transform: uppercase; font-size: 10px; letter-spacing: .5px; }
+    #infobar .info-val { color: #FFCB05; }
+    #infobar .info-empty { color: #444; font-style: italic; }
   </style>
 </head>
 <body>
@@ -76,8 +147,39 @@
       <button onclick="goTo('flint', this)">UM Flint</button>
     </div>
   </div>
-
+<div id="map-wrap">
+ <!-- Toolbar -->
+    <div id="toolbar">
+      <button id="btn-draw" onclick="toggleDraw()">⬛ Draw Rectangle</button>
+      <button id="btn-clear" onclick="clearRect()">✕ Clear</button>
+      <span id="draw-hint">Click and drag on the map to draw a rectangle</span>
+    </div>
   <div id="map"></div>
+<!-- Info bar -->
+    <div id="infobar">
+      <div class="info-group">
+        <span class="info-label">Min Lat</span>
+        <span class="info-val" id="i-minlat"><span class="info-empty">—</span></span>
+      </div>
+      <div class="info-group">
+        <span class="info-label">Max Lat</span>
+        <span class="info-val" id="i-maxlat"><span class="info-empty">—</span></span>
+      </div>
+      <div class="info-group">
+        <span class="info-label">Min Lng</span>
+        <span class="info-val" id="i-minlng"><span class="info-empty">—</span></span>
+      </div>
+      <div class="info-group">
+        <span class="info-label">Max Lng</span>
+        <span class="info-val" id="i-maxlng"><span class="info-empty">—</span></span>
+      </div>
+      <div class="info-group" style="margin-left:auto">
+        <span class="info-label">Center</span>
+        <span class="info-val" id="i-center"><span class="info-empty">—</span></span>
+      </div>
+    </div>
+</div>
+ 
 
 <script>
 const map = L.map('map').setView([42.2808, -83.7430], 15);
@@ -100,10 +202,10 @@ const map = L.map('map').setView([42.2808, -83.7430], 15);
       .catch(err => console.error('Failed to load GeoJSON:', err));
 
     const extents = {
-      central:  { center: [42.2808, -83.7430], zoom: 15 },
-      north:    { center: [42.2931, -83.7157], zoom: 15 },
-      dearborn: { center: [42.3223, -83.1763], zoom: 15 },
-      flint:    { center: [43.0125, -83.7127], zoom: 15 }
+      central:  { center: [42.278642, -83.736033], zoom: 16 },
+      north:    { center: [42.294214, -83.708653], zoom: 15 },
+      dearborn: { center: [42.319058, -83.231381], zoom: 15 },
+      flint:    { center: [43.019819, -83.689921], zoom: 15 }
     };
 
     function goTo(key, btn) {
@@ -111,6 +213,87 @@ const map = L.map('map').setView([42.2808, -83.7430], 15);
       map.flyTo(e.center, e.zoom, { duration: 1.5 });
       document.querySelectorAll('#extent-buttons button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+    }
+
+     /* ── Rectangle draw tool ── */
+    let drawing = false;
+    let startLatLng = null;
+    let rectLayer = null;
+    let previewLayer = null;
+
+    function toggleDraw() {
+      drawing = !drawing;
+      const btn = document.getElementById('btn-draw');
+      const hint = document.getElementById('draw-hint');
+      if (drawing) {
+        btn.classList.add('active');
+        map.getContainer().style.cursor = 'crosshair';
+        hint.style.display = 'inline';
+      } else {
+        btn.classList.remove('active');
+        map.getContainer().style.cursor = '';
+        hint.style.display = 'none';
+        startLatLng = null;
+        if (previewLayer) { map.removeLayer(previewLayer); previewLayer = null; }
+      }
+    }
+
+    function clearRect() {
+      if (rectLayer)    { map.removeLayer(rectLayer);   rectLayer = null; }
+      if (previewLayer) { map.removeLayer(previewLayer); previewLayer = null; }
+      startLatLng = null;
+      setInfo(null);
+    }
+
+    const mapContainer = map.getContainer();
+
+    mapContainer.addEventListener('mousedown', e => {
+      if (!drawing) return;
+      map.dragging.disable();
+      startLatLng = map.mouseEventToLatLng(e);
+    });
+
+    mapContainer.addEventListener('mousemove', e => {
+      if (!drawing || !startLatLng) return;
+      const current = map.mouseEventToLatLng(e);
+      if (previewLayer) map.removeLayer(previewLayer);
+      previewLayer = L.rectangle([startLatLng, current], {
+        color: '#00274C', weight: 2, dashArray: '5,5', fillOpacity: 0.1
+      }).addTo(map);
+    });
+
+    mapContainer.addEventListener('mouseup', e => {
+      if (!drawing || !startLatLng) return;
+      map.dragging.enable();
+
+      const endLatLng = map.mouseEventToLatLng(e);
+      if (previewLayer) { map.removeLayer(previewLayer); previewLayer = null; }
+      if (rectLayer)    { map.removeLayer(rectLayer); }
+
+      rectLayer = L.rectangle([startLatLng, endLatLng], {
+        color: '#00274C', weight: 2, fillColor: '#FFCB05', fillOpacity: 0.15
+      }).addTo(map);
+
+      setInfo(rectLayer.getBounds());
+      startLatLng = null;
+      toggleDraw(); /* auto exit draw mode */
+    });
+
+    function setInfo(bounds) {
+      if (!bounds) {
+        ['i-minlat','i-maxlat','i-minlng','i-maxlng','i-center'].forEach(id => {
+          document.getElementById(id).innerHTML = '<span class="info-empty">—</span>';
+        });
+        return;
+      }
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const center = bounds.getCenter();
+      document.getElementById('i-minlat').textContent = sw.lat.toFixed(6);
+      document.getElementById('i-maxlat').textContent = ne.lat.toFixed(6);
+      document.getElementById('i-minlng').textContent = sw.lng.toFixed(6);
+      document.getElementById('i-maxlng').textContent = ne.lng.toFixed(6);
+      document.getElementById('i-center').textContent  = `${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`;
     }
   </script>
 
