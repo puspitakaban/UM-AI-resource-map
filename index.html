@@ -1,18 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Resource Map</title>
   <!-- Fonts -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap"/>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" />
 
   <!-- Leaflet -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { display: flex; height: 100vh; font-family: sans-serif; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      display: flex;
+      height: 100vh;
+      font-family: sans-serif;
+    }
 
     #sidebar {
       width: 260px;
@@ -30,11 +41,56 @@
       margin-bottom: 20px;
     }
 
-    #map { flex: 1; }
+    #map {
+      flex: 1;
+    }
+
+    .map-tooltip {
+      background: #1a1d26;
+      border: 1px solid #2e3140;
+      color: #fff;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
+    }
+
+    .map-tooltip::before {
+      display: none;
+    }
+
+    .leaflet-interactive:focus {
+      outline: none;
+    }
+
+    #info-card {
+
+
+
+      position: fixed;
+      background: #fff;
+      border: 1px solid #3e4255;
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #02274d;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 9999;
+      max-width: 200px;
+    }
+
+    .info-card-title {
+      font-weight: 700;
+      color: #FFCB05;
+      margin-bottom: 6px;
+    }
 
     .text-align-center {
-     text-align: center;
+      text-align: center;
     }
+
     .text-umich-title {
       text-align: center;
       font-family: 'Atkinson Hyperlegible', sans-serif;
@@ -50,7 +106,7 @@
     #extent-buttons button {
       width: 100%;
       background: #fff;
-      color:#3e4255 ;
+      color: #3e4255;
       border: 1px solid #3e4255;
       font-family: 'Atkinson Hyperlegible', sans-serif;
       font-size: 12px;
@@ -60,16 +116,25 @@
       transition: all .15s;
     }
 
-    #extent-buttons button:hover { background: #3e4255; color: #fff; }
-    #extent-buttons button.active { background: #00274C; border-color: #FFCB05; color: #FFCB05; }
+    #extent-buttons button:hover {
+      background: #3e4255;
+      color: #fff;
+    }
+
+    #extent-buttons button.active {
+      background: #00274C;
+      border-color: #FFCB05;
+      color: #FFCB05;
+    }
   </style>
 </head>
+
 <body>
 
   <div id="sidebar">
     <h2 class="text-umich-title">University of Michigan AI Resource Map</h2>
     <!-- content goes here -->
-     <div id="extent-buttons">
+    <div id="extent-buttons">
       <button class="active" onclick="goTo('central', this)">Ann Arbor — Central Campus</button>
       <button onclick="goTo('north', this)">Ann Arbor — North Campus</button>
       <button onclick="goTo('dearborn', this)">UM Dearborn</button>
@@ -78,9 +143,12 @@
   </div>
 
   <div id="map"></div>
+  <div id="info-card" style="display:none;">
+    <p id="info-card-content"></p>
+  </div>
 
-<script>
-const map = L.map('map').setView([42.2808, -83.7430], 15);
+  <script>
+    const map = L.map('map').setView([42.278642, -83.736033], 16);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -88,22 +156,58 @@ const map = L.map('map').setView([42.2808, -83.7430], 15);
       maxZoom: 20
     }).addTo(map);
 
-    fetch('map-data/um-building-footprint.geojson')
+    fetch('map-data/um-building-footprint-edited.geojson')
       .then(res => res.json())
       .then(data => {
-        const layer = L.geoJSON(data).addTo(map);
-        const bounds = layer.getBounds();
-        /* lock min zoom to the full geojson extent */
-        map.setMinZoom(map.getBoundsZoom(bounds));
-        map.fitBounds(bounds);
+        const layer = L.geoJSON(data, {
+          style: feature => ({
+            color: '#00274C',
+            weight: 1,
+            fillColor: feature.properties.AI_resource ? '#FFCB05' : '#02274d',
+            fillOpacity: feature.properties.AI_resource ? 0.9 : 0.4
+          }),
+          onEachFeature: (feature, layer) => {
+            layer.bindTooltip(feature.properties.ObjectName || 'Unknown', {
+              sticky: true,
+              className: 'map-tooltip'
+            });
+            if (feature.properties.AI_resource) {
+
+              layer.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                layer.unbindTooltip();                // ← fully remove tooltip
+                map.flyTo(e.latlng, 18, { duration: 0.4});
+                const card = document.getElementById('info-card');
+                const content = document.getElementById('info-card-content');
+                content.innerHTML = `
+    <div class="info-card-title">${feature.properties.ObjectName}</div>
+    <div><p>This is an AI resource<\p></div>
+  `;
+                card.style.display = 'block';
+                const point = map.latLngToContainerPoint(e.latlng);
+                card.style.left = (point.x + 10) + 'px';
+                card.style.top = (point.y - 10) + 'px';
+              });
+
+              map.on('click', (e) => {
+                document.getElementById('info-card').style.display = 'none';
+                // rebind tooltip after card closes
+                layer.bindTooltip(feature.properties.ObjectName || 'Unknown', {
+                  sticky: true,
+                  className: 'map-tooltip'
+                });
+              });
+            }
+          }
+        }).addTo(map);
       })
       .catch(err => console.error('Failed to load GeoJSON:', err));
 
     const extents = {
-      central:  { center: [42.2808, -83.7430], zoom: 15 },
-      north:    { center: [42.2931, -83.7157], zoom: 15 },
-      dearborn: { center: [42.3223, -83.1763], zoom: 15 },
-      flint:    { center: [43.0125, -83.7127], zoom: 15 }
+      central: { center: [42.278642, -83.736033], zoom: 16 },
+      north: { center: [42.295040, -83.709576], zoom: 16 },
+      dearborn: { center: [42.319058, -83.231381], zoom: 16 },
+      flint: { center: [43.019819, -83.689921], zoom: 16 }
     };
 
     function goTo(key, btn) {
@@ -115,4 +219,5 @@ const map = L.map('map').setView([42.2808, -83.7430], 15);
   </script>
 
 </body>
+
 </html>
