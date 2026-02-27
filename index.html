@@ -280,7 +280,13 @@
       <button id="filter-toggle" onclick="toggleFilter()">
         Filter by Service <span class="arrow">▼</span>
       </button>
-      <div id="filter-list"></div>
+      <div id="filter-list">
+        <div class="filter-item" style="margin-bottom: 8px;">
+          <input type="checkbox" id="cat-all" checked onchange="toggleAll(this)" />
+          <label for="cat-all" style="font-weight:700; color:#00274C;">Select All</label>
+        </div>
+        <!-- categories injected here -->
+      </div>
     </div>
 
 
@@ -316,10 +322,77 @@
       maxZoom: 20
     }).addTo(map);
 
+    let geojsonLayer = null;
+
+    const categories = [
+      'AI Development',
+      'AI Research',
+      'Applied & Domain Focused Research',
+      'Arts, Humanities & Creative Practice',
+      'Computing & Technical Resources',
+      'Computing and Technical Resource',
+      'Consulting & Support',
+      'Development & Methods',
+      'Ethics, Society & Policy',
+      'Funding & Project Development',
+      'Research & Methods'
+    ];
+
+    /* Build checkboxes */
+    const filterList = document.getElementById('filter-list');
+    categories.forEach(cat => {
+      const item = document.createElement('div');
+      item.className = 'filter-item';
+      item.innerHTML = `
+        <input type="checkbox" id="cat-${cat}" value="${cat}" checked onchange="applyFilter()"/>
+        <label for="cat-${cat}">${cat}</label>
+      `;
+      filterList.appendChild(item);
+    });
+
+    function toggleFilter() {
+      document.getElementById('filter-toggle').classList.toggle('open');
+      document.getElementById('filter-list').classList.toggle('open');
+    }
+    function toggleAll(el) {
+      categories.forEach(cat => {
+        document.getElementById(`cat-${cat}`).checked = el.checked;
+      });
+      applyFilter();
+    }
+
+    function applyFilter() {
+      const selected = categories.filter(cat =>
+        document.getElementById(`cat-${cat}`).checked
+      );
+
+      // sync select-all checkbox
+      document.getElementById('cat-all').checked = selected.length === categories.length;
+
+      if (!geojsonLayer) return;
+      geojsonLayer.eachLayer(layer => {
+        console.log(typeof layer.feature.properties.service);
+        const props = layer.feature.properties;
+
+        // non-AI buildings always stay as-is
+        if (!props.AI_resource) return;
+
+        const services = props.service || [];
+        const match = selected.length > 0 && services.some(s => selected.includes(s));
+
+        // matched AI buildings → yellow, unmatched → dim blue like normal buildings
+        layer.setStyle({
+          fillColor: match ? '#FFCB05' : '#02274d',
+          fillOpacity: match ? 0.9 : 0.4
+        });
+      });
+    }
+
+
     fetch('map-data/um-building-footprint-edited.geojson')
       .then(res => res.json())
       .then(data => {
-        L.geoJSON(data, {
+        geojsonLayer = L.geoJSON(data, {
           style: feature => ({
             color: '#00274C',
             weight: 1,
@@ -348,54 +421,7 @@
       })
       .catch(err => console.error('Failed to load GeoJSON:', err));
 
-    function toggleFilter() {
-      document.getElementById('filter-toggle').classList.toggle('open');
-      document.getElementById('filter-list').classList.toggle('open');
-    }
-
-    const categories = [
-      'AI Development',
-      'AI Research',
-      'Applied & Domain Focused Research',
-      'Arts, Humanities & Creative Practice',
-      'Computing & Technical Resources',
-      'Computing and Technical Resource',
-      'Consulting & Support',
-      'Development & Methods',
-      'Ethics, Society & Policy',
-      'Funding & Project Development',
-      'Research & Methods'
-    ];
-
-    /* Build checkboxes */
-    const filterList = document.getElementById('filter-list');
-    categories.forEach(cat => {
-      const item = document.createElement('div');
-      item.className = 'filter-item';
-      item.innerHTML = `
-        <input type="checkbox" id="cat-${cat}" value="${cat}" checked onchange="applyFilter()"/>
-        <label for="cat-${cat}">${cat}</label>
-      `;
-      filterList.appendChild(item);
-    });
-
-
-    let geojsonLayer = null;
-
-    function applyFilter() {
-      const selected = categories.filter(cat =>
-        document.getElementById(`cat-${cat}`).checked
-      );
-
-      if (!geojsonLayer) return;
-
-      geojsonLayer.eachLayer(layer => {
-        const services = layer.feature.properties.service || [];
-        const match = selected.length === 0 || services.some(s => selected.includes(s));
-        const el = layer.getElement();
-        if (el) el.style.display = match ? '' : 'none';
-      });
-    }
+    
     /* ── Close right sidebar ── */
     function closeRightSidebar() {
       document.getElementById('right-sidebar').classList.remove('open');
@@ -419,6 +445,9 @@
       document.querySelectorAll('#extent-buttons button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     }
+
+    
+
   </script>
 
 </body>
