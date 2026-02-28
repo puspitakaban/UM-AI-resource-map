@@ -407,7 +407,7 @@
             if (feature.properties.AI_resource) {
               layer.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
-                layer.unbindTooltip();
+                layer.closeTooltip();
                 map.flyTo(e.latlng, 18, { duration: 1 });
                 document.getElementById('right-sidebar-body').innerHTML = `
                   <div class="info-card-title">${feature.properties.org}</div>
