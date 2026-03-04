@@ -110,14 +110,14 @@
       transform: translateX(0);
     }
 
-    .sidebar-header {
+    .right-sidebar-header {
       padding: 6px 8px;
       display: flex;
       justify-content: flex-end;
       flex-shrink: 0;
     }
 
-    .sidebar-header h2 {
+    .right-sidebar-header h2 {
       font-family: 'Atkinson Hyperlegible', sans-serif;
       font-size: 11px;
       font-weight: 700;
@@ -126,7 +126,7 @@
       letter-spacing: 0.07em;
     }
 
-    .sidebar-close {
+    .right-sidebar-close {
       background: none;
       border: none;
       cursor: pointer;
@@ -136,11 +136,11 @@
       padding: 2px 4px;
     }
 
-    .sidebar-close:hover {
+    .right-sidebar-close:hover {
       color: #333;
     }
 
-    .sidebar-body {
+    .right-sidebar-body {
       flex: 1;
       overflow-y: auto;
       padding: 12px 16px;
@@ -153,6 +153,69 @@
       color: #00274C;
       margin-bottom: 8px;
     }
+
+    .info-row {
+      font-size: 12px;
+      color: #333;
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
+    .info-label {
+      display: block;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #aaa;
+      margin-bottom: 1px;
+    }
+
+    .info-row a {
+      color: #00274C;
+      text-decoration: none;
+    }
+
+    .info-row a:hover {
+      text-decoration: underline;
+    }
+
+    .info-desc {
+      margin-top: 12px;
+      font-size: 11px;
+      color: #555;
+      line-height: 1.6;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+    }
+
+    .learn-more {
+      display: inline;
+      margin-left: 4px;
+      font-size: 11px;
+      color: #00274C;
+      opacity: 0.5;
+      text-decoration: none;
+    }
+
+    .learn-more:hover {
+      opacity: 1;
+    }
+
+    .service-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.service-tag {
+  font-size: 10px;
+  color: #00274C;
+  border: 1px solid #00274C;
+  border-radius: 20px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
 
     /* ── Tooltip ── */
     .map-tooltip {
@@ -303,10 +366,10 @@
 
     <!-- Right sidebar (inside map so position:absolute works) -->
     <div id="right-sidebar">
-      <div class="sidebar-header">
-        <button class="sidebar-close" onclick="closeRightSidebar()">×</button>
+      <div class="right-sidebar-header">
+        <button class="right-sidebar-close" onclick="closeRightSidebar()">×</button>
       </div>
-      <div class="sidebar-body" id="right-sidebar-body">
+      <div class="right-sidebar-body" id="right-sidebar-body">
         <!-- content injected here -->
       </div>
     </div>
@@ -374,11 +437,11 @@
         console.log(typeof layer.feature.properties.service);
         const props = layer.feature.properties;
 
-        // non-AI buildings always stay as-is
-        if (!props.AI_resource) return;
+        if (!props.is_resource) return;
 
-        const services = props.service || [];
-        const match = selected.length > 0 && services.some(s => selected.includes(s));
+        const services = Array.isArray(props.service) ? props.service : JSON.parse((props.service || '[]').replace(/'/g, '"'));
+        const allSelected = selected.length === categories.length;           // ← all checked
+        const match = allSelected || (selected.length > 0 && services.some(s => selected.includes(s)));
 
         // matched AI buildings → yellow, unmatched → dim blue like normal buildings
         layer.setStyle({
@@ -396,23 +459,41 @@
           style: feature => ({
             color: '#00274C',
             weight: 1,
-            fillColor: feature.properties.AI_resource ? '#FFCB05' : '#02274d',
-            fillOpacity: feature.properties.AI_resource ? 0.9 : 0.4
+            fillColor: feature.properties.is_resource ? '#FFCB05' : '#02274d',
+            fillOpacity: feature.properties.is_resource ? 0.9 : 0.4
           }),
           onEachFeature: (feature, layer) => {
-            layer.bindTooltip(feature.properties.ObjectName || 'Unknown', {
+            layer.bindTooltip(feature.properties.building_name || 'Unknown', {
               sticky: true,
               className: 'map-tooltip'
             });
-            if (feature.properties.AI_resource) {
+            if (feature.properties.is_resource) {
               layer.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
+                console.log(feature.properties);
                 layer.closeTooltip();
                 map.flyTo(e.latlng, 18, { duration: 1 });
+
+                const p = feature.properties;                                           // ← define p
+                const services = Array.isArray(p.service) ? p.service : JSON.parse((p.service || '[]').replace(/'/g, '"'));
+
                 document.getElementById('right-sidebar-body').innerHTML = `
-                  <div class="info-card-title">${feature.properties.org}</div>
-                  <div>Address : ${feature.properties.address}</div>
-                `;
+    <div class="info-card-title">${p.org || ''}</div>
+    <div class="info-desc">${p.description || ''}
+      <a href="${p.url}" target="_blank" class="learn-more">Learn More</a>
+    </div>
+    <div class="info-row"><span class="info-label">Address</span>${p.address || ''}</div>
+    <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ''}</a></div>
+    <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ''}</a></div>
+       <div class="info-row">
+  <span class="info-label">Services</span>
+  <div class="service-tags">
+    ${services.map(s => `<span class="service-tag">${s}</span>`).join('')}
+  </div>
+</div>
+
+    
+  `;
                 document.getElementById('right-sidebar').classList.add('open');
               });
             }
@@ -421,7 +502,7 @@
       })
       .catch(err => console.error('Failed to load GeoJSON:', err));
 
-    
+
     /* ── Close right sidebar ── */
     function closeRightSidebar() {
       document.getElementById('right-sidebar').classList.remove('open');
@@ -446,7 +527,7 @@
       btn.classList.add('active');
     }
 
-    
+
 
   </script>
 
