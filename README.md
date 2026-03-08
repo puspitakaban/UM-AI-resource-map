@@ -15,7 +15,7 @@ The map is built using Leaflet.js, a lightweight open-source JavaScript library 
 - Campus extent buttons to quickly navigate between campuses
 
 # Data
-- Buidling footprint menggunakan data provided by University of Michigan Facilities & Operations Information Services. Data taggal 8 July 2025.
+- **Building footprints** — Shapefile provided by the University of Michigan Facilities & Operations Information Services, accessed via ArcGIS Online ([link](https://www.arcgis.com/home/item.html?id=ba25642ae276429b8664dda39ba261e3)). Last updated July 8, 2025.
 - 
 
 
