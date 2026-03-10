@@ -1,5 +1,5 @@
 # Introduction
-This project maps AI resources across the three campuses of the University of Michigan — Ann Arbor, Dearborn, and Flint. The goal is to provide an interactive, spatial overview of organizations, labs, and facilities that offer AI-related services and research support across the university.
+This project maps the locations of AI resources across the three campuses of the University of Michigan — Ann Arbor, Dearborn, and Flint. The goal is to provide an interactive, spatial overview of organizations, labs, and facilities that offer AI-related services and research support across the university.
 
 
 
