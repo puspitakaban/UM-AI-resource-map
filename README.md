@@ -24,4 +24,5 @@ um-ai-resource-map/
 ├── README.md
 └── map-data/
     └── um-building-footprint-edited.geojson
+    └── resources.csv
 ```
