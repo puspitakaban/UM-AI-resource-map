@@ -142,10 +142,10 @@
       .then(data => {
         geojsonLayer = L.geoJSON(data, {
           style: feature => ({
-            color: feature.properties.is_resource ? '#e5b706' : '#02274d',
-            weight: feature.properties.is_resource ? 2 : 0.75,
+            color: '#02274d',
+            weight: 0.75,
             fillColor: feature.properties.is_resource ? '#FFCB05' : '#02274d',
-            fillOpacity: feature.properties.is_resource ? 0.9 : 0.2
+            fillOpacity: feature.properties.is_resource ? 0.9 : 0.1
           }),
           onEachFeature: (feature, layer) => {
             layer.bindTooltip(feature.properties.building_name || 'Unknown', {
