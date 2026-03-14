@@ -17,22 +17,30 @@
   <!-- Left sidebar -->
   <div id="left-sidebar">
     <h2 class="text-umich-title">University of Michigan AI Resource Map</h2>
-    <p class="info-desc" style="color: #fff">Map shows AI resources across the three campuses of the University of Michigan. Hover over any building to see its name. Click a highlighted building to view organization details. Use the filter on the left to highlight buiding by service category.</p>
-    
 
     <div id="filter-section">
-      <button id="filter-toggle" onclick="toggleFilter()">
-        Filter by Service <span class="arrow">▼</span>
+      <!-- Category filter -->
+      <button class="filter-toggle" id="category-toggle" onclick="toggleFilter('category')">
+        Filter by Category <span class="arrow">▼</span>
       </button>
-      <div id="filter-list">
+      <div class="filter-list" id="category-list">
         <div class="filter-item" style="margin-bottom: 8px;">
-          <input type="checkbox" id="cat-all" checked onchange="toggleAll(this)" />
+          <input type="checkbox" id="cat-all" checked onchange="toggleAll('category', this)" />
           <label for="cat-all" style="font-weight:700; color:#00274C;">Select All</label>
         </div>
-        <!-- categories injected here -->
+      </div>
+
+      <!-- Audience filter -->
+      <button class="filter-toggle" id="audience-toggle" onclick="toggleFilter('audience')" style="margin-top: 8px;">
+        Filter by Audience <span class="arrow">▼</span>
+      </button>
+      <div class="filter-list" id="audience-list">
+        <div class="filter-item" style="margin-bottom: 8px;">
+          <input type="checkbox" id="aud-all" checked onchange="toggleAll('audience', this)" />
+          <label for="aud-all" style="font-weight:700; color:#00274C;">Select All</label>
+        </div>
       </div>
     </div>
-
 
     <div id="extent-buttons">
       <button class="active" onclick="goTo('central', this)">Ann Arbor — Central Campus</button>
@@ -42,14 +50,12 @@
     </div>
 
     <div style="background: #fff; margin: 10px -20px -20px -20px; padding: 12px 20px; text-align: center;">
-  <img src="assets/AIIM_logo.png" style="width: 100%; max-width: 200px;"/>
-</div>
-  </div>
+      <img src="assets/AIIM_logo.png" style="width: 100%; max-width: 200px;" />
+    </div>
+  </div> <!-- ← closes #left-sidebar -->
 
   <!-- Map -->
   <div id="map">
-
-    <!-- Right sidebar (inside map so position:absolute works) -->
     <div id="right-sidebar">
       <div class="right-sidebar-header">
         <button class="right-sidebar-close" onclick="closeRightSidebar()">×</button>
@@ -58,7 +64,6 @@
         <!-- content injected here -->
       </div>
     </div>
-
   </div>
 
   <script>
@@ -86,52 +91,73 @@
       'Research & Methods'
     ];
 
-    /* Build checkboxes */
-    const filterList = document.getElementById('filter-list');
-    categories.forEach(cat => {
-      const item = document.createElement('div');
-      item.className = 'filter-item';
-      item.innerHTML = `
-        <input type="checkbox" id="cat-${cat}" value="${cat}" checked onchange="applyFilter()"/>
-        <label for="cat-${cat}">${cat}</label>
-      `;
-      filterList.appendChild(item);
-    });
+    const audiences = [
+      /* add your audience options here */
+    ];
 
-    function toggleFilter() {
-      document.getElementById('filter-toggle').classList.toggle('open');
-      document.getElementById('filter-list').classList.toggle('open');
+    /* Build checkboxes */
+    function buildCheckboxes(list, containerId, prefix) {
+      const container = document.getElementById(containerId);
+      list.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'filter-item';
+        div.innerHTML = `
+      <input type="checkbox" id="${prefix}-${item}" value="${item}" checked onchange="applyFilter()"/>
+      <label for="${prefix}-${item}">${item}</label>
+    `;
+        container.appendChild(div);
+      });
     }
-    function toggleAll(el) {
-      categories.forEach(cat => {
-        document.getElementById(`cat-${cat}`).checked = el.checked;
+
+    buildCheckboxes(categories, 'category-list', 'cat');
+    buildCheckboxes(audiences, 'audience-list', 'aud');
+
+    function toggleFilter(type) {
+      document.getElementById(`${type}-toggle`).classList.toggle('open');
+      document.getElementById(`${type}-list`).classList.toggle('open');
+    }
+
+    function toggleAll(type, el) {
+      const list = type === 'category' ? categories : audiences;
+      const prefix = type === 'category' ? 'cat' : 'aud';
+      list.forEach(item => {
+        document.getElementById(`${prefix}-${item}`).checked = el.checked;
       });
       applyFilter();
     }
 
     function applyFilter() {
-      const selected = categories.filter(cat =>
-        document.getElementById(`cat-${cat}`).checked
-      );
+      const selectedCats = categories.filter(c => document.getElementById(`cat-${c}`).checked);
+      const selectedAuds = audiences.filter(a => document.getElementById(`aud-${a}`).checked);
 
-      // sync select-all checkbox
-      document.getElementById('cat-all').checked = selected.length === categories.length;
+      document.getElementById('cat-all').checked = selectedCats.length === categories.length;
+      document.getElementById('aud-all').checked = selectedAuds.length === audiences.length;
 
       if (!geojsonLayer) return;
-      geojsonLayer.eachLayer(layer => {
-        console.log(typeof layer.feature.properties.service);
-        const props = layer.feature.properties;
 
+      geojsonLayer.eachLayer(layer => {
+        const props = layer.feature.properties;
         if (!props.is_resource) return;
 
-        const services = Array.isArray(props.service) ? props.service : JSON.parse((props.service || '[]').replace(/'/g, '"'));
-        const allSelected = selected.length === categories.length;           // ← all checked
-        const match = allSelected || (selected.length > 0 && services.some(s => selected.includes(s)));
+        const buildingCats = Array.isArray(props.category)
+          ? props.category
+          : (props.category || '').split(';').map(s => s.trim()).filter(s => s);
 
-        // matched AI buildings → yellow, unmatched → dim blue like normal buildings
+        const buildingAuds = Array.isArray(props.audience)
+          ? props.audience
+          : (props.audience || '').split(';').map(s => s.trim()).filter(s => s);
+
+        const allCatsSelected = selectedCats.length === categories.length;
+        const allAudsSelected = selectedAuds.length === audiences.length;
+
+        const catMatch = allCatsSelected || (selectedCats.length > 0 && buildingCats.some(s => selectedCats.includes(s)));
+        const audMatch = allAudsSelected || (selectedAuds.length > 0 && buildingAuds.some(s => selectedAuds.includes(s)));
+
+        const match = catMatch && audMatch;
+
         layer.setStyle({
           fillColor: match ? '#FFCB05' : '#02274d',
-          fillOpacity: match ? 0.9 : 0.4
+          fillOpacity: match ? 0.9 : 0.1
         });
       });
     }
@@ -152,14 +178,16 @@
               sticky: true,
               className: 'map-tooltip'
             });
-            if (feature.properties.is_resource && feature.properties.org) {
+            if (feature.properties.is_resource) {
               layer.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
                 layer.closeTooltip();
                 map.flyTo(e.latlng, 18, { duration: 1 });
 
                 const p = feature.properties;                                           // ← define p
-                const services = Array.isArray(p.service) ? p.service : JSON.parse((p.service || '[]').replace(/'/g, '"'));
+                const categories = Array.isArray(p.category)
+                  ? p.category
+                  : (p.category || '').split(';').map(s => s.trim()).filter(s => s);
 
                 document.getElementById('right-sidebar-body').innerHTML = `
     <div class="info-card-title">${p.org || ''}</div>
@@ -170,9 +198,9 @@
     <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ''}</a></div>
     <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ''}</a></div>
        <div class="info-row">
-  <span class="info-label">Services</span>
-  <div class="service-tags">
-    ${services.map(s => `<span class="service-tag">${s}</span>`).join('')}
+  <span class="info-label">Categories</span>
+  <div class="filter-tags">
+    ${categories.map(s => `<span class="filter-tag">${s}</span>`).join('')}
   </div>
 </div>
 
