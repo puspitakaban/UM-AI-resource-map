@@ -14,8 +14,7 @@ The map is built using Leaflet.js, a lightweight open-source JavaScript library 
 
 # Data
 - **Building footprints** — Shapefile provided by the University of Michigan Facilities & Operations Information Services, accessed via ArcGIS Online ([link](https://www.arcgis.com/home/item.html?id=ba25642ae276429b8664dda39ba261e3)). Last updated July 8, 2025.
-- 
-
+- **AI resource details** — Custom dataset compiled from University of Michigan departmental websites, research centers, program pages, and surveys. The dataset includes the names of each resource along with information on the specific services and initiatives offered, contact information, street addresses, and consultation hours (if offered). Data was manually collected and standardized to support spatial integration with campus building footprints. This dataset is not an official university dataset and may not be exhaustive.
 
 ## Project Structure
 ```
