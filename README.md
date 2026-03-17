@@ -20,8 +20,10 @@ The map is built using Leaflet.js, a lightweight open-source JavaScript library 
 ```
 um-ai-resource-map/
 ├── index.html
+├── map.js
+├── style.css
 ├── README.md
 └── map-data/
     └── um-building-footprint-edited.geojson
-    └── resources.csv
+    └── resources-edited.csv
 ```
