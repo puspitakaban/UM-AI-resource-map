@@ -26,7 +26,29 @@ const categories = [
 
 const audiences = ["Faculty", "Undergraduate", "Graduate"];
 
-/* ── Build checkboxes ── */
+function parseCSV(text) {
+  const rows = text.trim().split("\n");
+  const headers = rows[0].split(",").map((h) => h.trim());
+  return rows.slice(1).map((row) => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+    return Object.fromEntries(headers.map((h, i) => [h, values[i] || ""]));
+  });
+}
+
 function buildCheckboxes(list, containerId, prefix) {
   const container = document.getElementById(containerId);
   list.forEach((item) => {
@@ -40,10 +62,6 @@ function buildCheckboxes(list, containerId, prefix) {
   });
 }
 
-buildCheckboxes(categories, "category-list", "cat");
-buildCheckboxes(audiences, "audience-list", "aud");
-
-/* ── Filter ── */
 function toggleFilter(type) {
   document.getElementById(`${type}-toggle`).classList.toggle("open");
   document.getElementById(`${type}-list`).classList.toggle("open");
@@ -56,6 +74,54 @@ function toggleAll(type, el) {
     document.getElementById(`${prefix}-${item}`).checked = el.checked;
   });
   applyFilter();
+}
+
+function toggleResourceList(event) {
+  event.stopPropagation();
+  document.getElementById("sidebar-tab").style.display = "none";
+  document.getElementById("right-sidebar-body").innerHTML = `
+    ${resourceData
+      .map(
+        (p, i) => `
+      <div class="toggle-card">
+        <div class="toggle-card-header" onclick="openResourceCard(${i}, '${p.building_id}')">
+  <span>${p.resource_name || "Unknown"}</span>
+</div>
+        <div class="toggle-card-body" id="card-${i}" style="display:none;">
+          <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
+          <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
+          <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
+        </div>
+      </div>
+    `,
+      )
+      .join("")}
+  `;
+  console.log(document.getElementById("right-sidebar"));
+  document.getElementById("right-sidebar").classList.add("open");
+}
+
+function closeRightSidebar() {
+  document.getElementById("right-sidebar").classList.remove("open");
+  document.getElementById("sidebar-tab").style.display = "block";
+}
+
+function toggleCard(i) {
+  const body = document.getElementById(`card-${i}`);
+  const isOpen = body.style.display !== "none";
+  body.style.display = isOpen ? "none" : "block";
+}
+
+function openResourceCard(i, buildingId) {
+  toggleCard(i);
+
+  if (!buildingId || !geojsonLayer) return;
+  geojsonLayer.eachLayer((layer) => {
+    if (String(layer.feature.properties.building_id) === String(buildingId)) {
+      const center = layer.getBounds().getCenter();
+      map.flyTo(center, 18, { duration: 1 });
+    }
+  });
 }
 
 function applyFilter() {
@@ -110,91 +176,48 @@ function applyFilter() {
       fillOpacity: match ? 0.9 : 0.1,
     });
   });
+  
+  const sidebar = document.getElementById("right-sidebar");
+  if (sidebar.classList.contains("open")) {
+    const selectedCats = categories.filter(
+      (c) => document.getElementById(`cat-${c}`).checked,
+    );
+    const selectedAuds = audiences.filter(
+      (a) => document.getElementById(`aud-${a}`).checked,
+    );
 
-  // re-render resource list if sidebar is open
-const sidebar = document.getElementById("right-sidebar");
-if (sidebar.classList.contains("open")) {
-  const selectedCats = categories.filter(
-    (c) => document.getElementById(`cat-${c}`).checked,
-  );
-  const selectedAuds = audiences.filter(
-    (a) => document.getElementById(`aud-${a}`).checked,
-  );
+    const filtered = resourceData.filter((p) => {
+      const buildingCats = (p.category || "")
+        .split(";")
+        .map((s) => s.trim())
+        .filter((s) => s);
+      const buildingAuds = (p.audience || "")
+        .split((s) => s.trim())
+        .filter((s) => s);
 
-  const filtered = resourceData.filter((p) => {
-    const buildingCats = (p.category || "").split(";").map((s) => s.trim()).filter((s) => s);
-    const buildingAuds = (p.audience || "").split((s) => s.trim()).filter((s) => s);
+      const allCatsSelected = selectedCats.length === categories.length;
+      const allAudsSelected = selectedAuds.length === audiences.length;
 
-    const allCatsSelected = selectedCats.length === categories.length;
-    const allAudsSelected = selectedAuds.length === audiences.length;
+      const catMatch =
+        allCatsSelected ||
+        (selectedCats.length > 0 &&
+          buildingCats.some((s) => selectedCats.includes(s)));
+      const audMatch =
+        allAudsSelected ||
+        (selectedAuds.length > 0 &&
+          buildingAuds.some((s) => selectedAuds.includes(s)));
 
-    const catMatch = allCatsSelected || (selectedCats.length > 0 && buildingCats.some((s) => selectedCats.includes(s)));
-    const audMatch = allAudsSelected || (selectedAuds.length > 0 && buildingAuds.some((s) => selectedAuds.includes(s)));
+      return catMatch && audMatch;
+    });
 
-    return catMatch && audMatch;
-  });
-
-  document.getElementById("right-sidebar-body").innerHTML = `
-    ${filtered.map((p, i) => `
-      <div class="toggle-card">
-        <div class="toggle-card-header" onclick="toggleCard(${i})">
-          <span>${p.resource_name || "Unknown"}</span>
-        </div>
-        <div class="toggle-card-body" id="card-${i}" style="display:none;">
-          <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
-          <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
-          <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
-        </div>
-      </div>
-    `).join("")}
-  `;
-}
-}
-
-/* ── CSV parser ── */
-function parseCSV(text) {
-  const rows = text.trim().split("\n");
-  const headers = rows[0].split(",").map((h) => h.trim());
-  return rows.slice(1).map((row) => {
-    const values = [];
-    let current = "";
-    let inQuotes = false;
-    for (let i = 0; i < row.length; i++) {
-      const char = row[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === "," && !inQuotes) {
-        values.push(current.trim());
-        current = "";
-      } else {
-        current += char;
-      }
-    }
-    values.push(current.trim());
-    return Object.fromEntries(headers.map((h, i) => [h, values[i] || ""]));
-  });
-}
-
-/* ── Toggle card ── */
-function toggleCard(i) {
-  const body = document.getElementById(`card-${i}`);
-  const isOpen = body.style.display !== "none";
-  body.style.display = isOpen ? "none" : "block";
-}
-
-/* ── Resource list (side tab) ── */
-function toggleResourceList(event) {
-    event.stopPropagation();
-  console.log("toggleResourceList called", resourceData.length);
-  document.getElementById("sidebar-tab").style.display = "none";
-  document.getElementById("right-sidebar-body").innerHTML = `
-    ${resourceData
+    document.getElementById("right-sidebar-body").innerHTML = `
+    ${filtered
       .map(
         (p, i) => `
       <div class="toggle-card">
-        <div class="toggle-card-header" onclick="toggleCard(${i})">
-          <span>${p.resource_name || "Unknown"}</span>
-        </div>
+        <div class="toggle-card-header" onclick="openResourceCard(${i}, '${p.building_id}')">
+  <span>${p.resource_name || "Unknown"}</span>
+</div>
         <div class="toggle-card-body" id="card-${i}" style="display:none;">
           <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
           <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
@@ -205,9 +228,11 @@ function toggleResourceList(event) {
       )
       .join("")}
   `;
-  console.log(document.getElementById("right-sidebar"));
-  document.getElementById("right-sidebar").classList.add("open");
+  }
 }
+
+buildCheckboxes(categories, "category-list", "cat");
+buildCheckboxes(audiences, "audience-list", "aud");
 
 /* ── Load CSV ── */
 fetch("map-data/resources-edited.csv")
@@ -339,12 +364,6 @@ fetch("map-data/um-building-footprint-edited.geojson")
     }).addTo(map);
   })
   .catch((err) => console.error("Failed to load GeoJSON:", err));
-
-/* ── Right sidebar ── */
-function closeRightSidebar() {
-  document.getElementById("right-sidebar").classList.remove("open");
-  document.getElementById("sidebar-tab").style.display = "block";
-}
 
 document.getElementById("right-sidebar").addEventListener("click", (e) => {
   e.stopPropagation();
