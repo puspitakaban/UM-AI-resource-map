@@ -110,6 +110,45 @@ function applyFilter() {
       fillOpacity: match ? 0.9 : 0.1,
     });
   });
+
+  // re-render resource list if sidebar is open
+const sidebar = document.getElementById("right-sidebar");
+if (sidebar.classList.contains("open")) {
+  const selectedCats = categories.filter(
+    (c) => document.getElementById(`cat-${c}`).checked,
+  );
+  const selectedAuds = audiences.filter(
+    (a) => document.getElementById(`aud-${a}`).checked,
+  );
+
+  const filtered = resourceData.filter((p) => {
+    const buildingCats = (p.category || "").split(";").map((s) => s.trim()).filter((s) => s);
+    const buildingAuds = (p.audience || "").split((s) => s.trim()).filter((s) => s);
+
+    const allCatsSelected = selectedCats.length === categories.length;
+    const allAudsSelected = selectedAuds.length === audiences.length;
+
+    const catMatch = allCatsSelected || (selectedCats.length > 0 && buildingCats.some((s) => selectedCats.includes(s)));
+    const audMatch = allAudsSelected || (selectedAuds.length > 0 && buildingAuds.some((s) => selectedAuds.includes(s)));
+
+    return catMatch && audMatch;
+  });
+
+  document.getElementById("right-sidebar-body").innerHTML = `
+    ${filtered.map((p, i) => `
+      <div class="toggle-card">
+        <div class="toggle-card-header" onclick="toggleCard(${i})">
+          <span>${p.resource_name || "Unknown"}</span>
+        </div>
+        <div class="toggle-card-body" id="card-${i}" style="display:none;">
+          <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
+          <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
+          <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
+        </div>
+      </div>
+    `).join("")}
+  `;
+}
 }
 
 /* ── CSV parser ── */
