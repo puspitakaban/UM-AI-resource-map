@@ -8,6 +8,7 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
 }).addTo(map);
 
 let geojsonLayer = null;
+let resourceData = [];
 
 const categories = [
   "AI Development",
@@ -25,7 +26,7 @@ const categories = [
 
 const audiences = ["Faculty", "Undergraduate", "Graduate"];
 
-/* Build checkboxes */
+/* ── Build checkboxes ── */
 function buildCheckboxes(list, containerId, prefix) {
   const container = document.getElementById(containerId);
   list.forEach((item) => {
@@ -42,6 +43,7 @@ function buildCheckboxes(list, containerId, prefix) {
 buildCheckboxes(categories, "category-list", "cat");
 buildCheckboxes(audiences, "audience-list", "aud");
 
+/* ── Filter ── */
 function toggleFilter(type) {
   document.getElementById(`${type}-toggle`).classList.toggle("open");
   document.getElementById(`${type}-list`).classList.toggle("open");
@@ -109,6 +111,8 @@ function applyFilter() {
     });
   });
 }
+
+/* ── CSV parser ── */
 function parseCSV(text) {
   const rows = text.trim().split("\n");
   const headers = rows[0].split(",").map((h) => h.trim());
@@ -132,12 +136,48 @@ function parseCSV(text) {
   });
 }
 
+/* ── Toggle card ── */
 function toggleCard(i) {
   const body = document.getElementById(`card-${i}`);
   const isOpen = body.style.display !== "none";
   body.style.display = isOpen ? "none" : "block";
 }
 
+/* ── Resource list (side tab) ── */
+function toggleResourceList(event) {
+    event.stopPropagation();
+  console.log("toggleResourceList called", resourceData.length);
+  document.getElementById("sidebar-tab").style.display = "none";
+  document.getElementById("right-sidebar-body").innerHTML = `
+    ${resourceData
+      .map(
+        (p, i) => `
+      <div class="toggle-card">
+        <div class="toggle-card-header" onclick="toggleCard(${i})">
+          <span>${p.resource_name || "Unknown"}</span>
+        </div>
+        <div class="toggle-card-body" id="card-${i}" style="display:none;">
+          <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
+          <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
+          <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
+        </div>
+      </div>
+    `,
+      )
+      .join("")}
+  `;
+  console.log(document.getElementById("right-sidebar"));
+  document.getElementById("right-sidebar").classList.add("open");
+}
+
+/* ── Load CSV ── */
+fetch("map-data/resources-edited.csv")
+  .then((res) => res.text())
+  .then((csvText) => {
+    resourceData = parseCSV(csvText).filter((r) => r.resource_name);
+  });
+
+/* ── Load GeoJSON ── */
 fetch("map-data/um-building-footprint-edited.geojson")
   .then((res) => res.json())
   .then((data) => {
@@ -160,94 +200,100 @@ fetch("map-data/um-building-footprint-edited.geojson")
             map.flyTo(e.latlng, 18, { duration: 1 });
 
             const buildingId = feature.properties.building_id;
+            const matches = resourceData.filter(
+              (r) => r.building_id === String(buildingId),
+            );
 
-            fetch("map-data/resources-edited.csv")
-              .then((res) => res.text())
-              .then((csvText) => {
-                const records = parseCSV(csvText); // ← no closing }); here
+            if (matches.length === 0) {
+              document.getElementById("right-sidebar-body").innerHTML = `
+                <div class="info-card-title">No data found</div>
+              `;
+              document.getElementById("right-sidebar").classList.add("open");
+              return;
+            }
 
-                const matches = records.filter(
-                  (r) => r.building_id === String(buildingId),
-                );
+            if (matches.length === 1) {
+              const p = matches[0];
+              const resourceCategories = (p.category || "")
+                .split(";")
+                .map((s) => s.trim())
+                .filter((s) => s);
+              const resourceAudiences = (p.audience || "")
+                .split(";")
+                .map((s) => s.trim())
+                .filter((s) => s);
+              document.getElementById("sidebar-tab").style.display = "none";
 
-                if (matches.length === 0) {
-                  document.getElementById("right-sidebar-body").innerHTML = `
-    <div class="info-card-title">No data found</div>
-  `;
-                  document
-                    .getElementById("right-sidebar")
-                    .classList.add("open");
-                  return;
-                }
+              document.getElementById("right-sidebar-body").innerHTML = `
+                <div class="toggle-card">
+                  <div class="toggle-card-header" onclick="toggleCard(0)">
+                    <span>${p.resource_name || ""}</span>
+                  </div>
+                  <div class="toggle-card-body" id="card-0">
+                    <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
+                    <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
+                    <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
+                    <div class="info-row">
+                      <span class="info-label">Categories</span>
+                      <div class="filter-tags">
+                        ${resourceCategories.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
+                      </div>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Audience</span>
+                      <div class="filter-tags">
+                        ${resourceAudiences.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
+                      </div>
+                    </div>
+                    <div class="info-desc">${p.description || ""}</div>
+                  </div>
+                </div>
+              `;
+            } else {
+              document.getElementById("sidebar-tab").style.display = "none";
 
-                if (matches.length === 1) {
-  const p = matches[0];
-  const resourceCategories = (p.category || "").split(";").map((s) => s.trim()).filter((s) => s);
-  const resourceAudiences = (p.audience || "").split(";").map((s) => s.trim()).filter((s) => s);
+              document.getElementById("right-sidebar-body").innerHTML = `
+                ${matches
+                  .map((p, i) => {
+                    const resourceCategories = (p.category || "")
+                      .split(";")
+                      .map((s) => s.trim())
+                      .filter((s) => s);
+                    const resourceAudiences = (p.audience || "")
+                      .split(";")
+                      .map((s) => s.trim())
+                      .filter((s) => s);
+                    return `
+                    <div class="toggle-card">
+                      <div class="toggle-card-header" onclick="toggleCard(${i})">
+                        <span>${p.resource_name || "Unknown"}</span>
+                      </div>
+                      <div class="toggle-card-body" id="card-${i}" style="display:none;">
+                        <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
+                        <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
+                        <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
+                        <div class="info-row">
+                          <span class="info-label">Categories</span>
+                          <div class="filter-tags">
+                            ${resourceCategories.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
+                          </div>
+                        </div>
+                        <div class="info-row">
+                          <span class="info-label">Audience</span>
+                          <div class="filter-tags">
+                            ${resourceAudiences.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
+                          </div>
+                        </div>
+                        <div class="info-desc">${p.description || ""}</div>
+                      </div>
+                    </div>
+                  `;
+                  })
+                  .join("")}
+              `;
+            }
 
-  document.getElementById("right-sidebar-body").innerHTML = `
-    <div class="toggle-card">
-      <div class="toggle-card-header" onclick="toggleCard(0)">
-        <span>${p.resource_name || ""}</span>
-      </div>
-      <div class="toggle-card-body" id="card-0">
-        <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
-        <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
-        <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
-        <div class="info-row">
-          <span class="info-label">Categories</span>
-          <div class="filter-tags">
-            ${resourceCategories.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
-          </div>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Audience</span>
-          <div class="filter-tags">
-            ${resourceAudiences.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
-          </div>
-        </div>
-        <div class="info-desc">${p.description || ""}</div>
-      </div>
-    </div>
-  `;
-
-} else {
-  document.getElementById("right-sidebar-body").innerHTML = `
-    ${matches.map((p, i) => {
-      const resourceCategories = (p.category || "").split(";").map((s) => s.trim()).filter((s) => s);
-      const resourceAudiences = (p.audience || "").split(";").map((s) => s.trim()).filter((s) => s);
-      return `
-        <div class="toggle-card">
-          <div class="toggle-card-header" onclick="toggleCard(${i})">  <!-- ← moved onclick here -->
-            <span>${p.resource_name || "Unknown"}</span>
-          </div>
-          <div class="toggle-card-body" id="card-${i}" style="display:none;">
-            <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
-            <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
-            <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
-            <div class="info-row">
-              <span class="info-label">Categories</span>
-              <div class="filter-tags">
-                ${resourceCategories.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
-              </div>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Audience</span>
-              <div class="filter-tags">
-                ${resourceAudiences.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
-              </div>
-            </div>
-            <div class="info-desc">${p.description || ""}</div>
-          </div>
-        </div>
-      `;
-    }).join("")}
-  `;
-}
-
-                document.getElementById("right-sidebar").classList.add("open");
-              })
-              .catch((err) => console.error("Failed to load CSV:", err));
+            document.getElementById("right-sidebar").classList.add("open");
           });
         }
       },
@@ -255,14 +301,16 @@ fetch("map-data/um-building-footprint-edited.geojson")
   })
   .catch((err) => console.error("Failed to load GeoJSON:", err));
 
-/* ── Close right sidebar ── */
+/* ── Right sidebar ── */
 function closeRightSidebar() {
   document.getElementById("right-sidebar").classList.remove("open");
+  document.getElementById("sidebar-tab").style.display = "block";
 }
 
 document.getElementById("right-sidebar").addEventListener("click", (e) => {
   e.stopPropagation();
 });
+
 map.on("click", () => {
   closeRightSidebar();
 });
