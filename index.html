@@ -17,30 +17,24 @@
   <!-- Left sidebar -->
   <div id="left-sidebar">
     <h2 class="text-umich-title">University of Michigan AI Resource Map</h2>
-
-    <div id="filter-section">
-      <!-- Category filter -->
-      <button class="filter-toggle" id="category-toggle" onclick="toggleFilter('category')">
-        Filter by Category <span class="arrow">▼</span>
-      </button>
-      <div class="filter-list" id="category-list">
-        <div class="filter-item" style="margin-bottom: 8px;">
-          <input type="checkbox" id="cat-all" checked onchange="toggleAll('category', this)" />
-          <label for="cat-all" style="font-weight:700; color:#00274C;">Select All</label>
-        </div>
-      </div>
-
-      <!-- Audience filter -->
-      <button class="filter-toggle" id="audience-toggle" onclick="toggleFilter('audience')" style="margin-top: 8px;">
-        Filter by Audience <span class="arrow">▼</span>
-      </button>
-      <div class="filter-list" id="audience-list">
-        <div class="filter-item" style="margin-bottom: 8px;">
-          <input type="checkbox" id="aud-all" checked onchange="toggleAll('audience', this)" />
-          <label for="aud-all" style="font-weight:700; color:#00274C;">Select All</label>
-        </div>
-      </div>
+    <p>This project maps the locations of AI resources across the three campuses of the University of Michigan — Ann Arbor, Dearborn, and Flint.</p>
+   <div id="filter-section">
+  <div class="filter-list-label">Filter by Category</div>
+  <div class="filter-list open" id="category-list">
+    <div class="filter-item" style="margin-bottom: 8px;">
+      <input type="checkbox" id="cat-all" checked onchange="toggleAll('category', this)" />
+      <label for="cat-all" style="font-weight:700; color:#00274C;">Select All</label>
     </div>
+  </div>
+
+  <div class="filter-list-label" style="margin-top: 8px;">Filter by Audience</div>
+  <div class="filter-list open" id="audience-list">
+    <div class="filter-item" style="margin-bottom: 8px;">
+      <input type="checkbox" id="aud-all" checked onchange="toggleAll('audience', this)" />
+      <label for="aud-all" style="font-weight:700; color:#00274C;">Select All</label>
+    </div>
+  </div>
+</div>
 
     <div id="extent-buttons">
       <button class="active" onclick="goTo('central', this)">Ann Arbor — Central Campus</button>

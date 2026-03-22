@@ -62,11 +62,6 @@ function buildCheckboxes(list, containerId, prefix) {
   });
 }
 
-function toggleFilter(type) {
-  document.getElementById(`${type}-toggle`).classList.toggle("open");
-  document.getElementById(`${type}-list`).classList.toggle("open");
-}
-
 function toggleAll(type, el) {
   const list = type === "category" ? categories : audiences;
   const prefix = type === "category" ? "cat" : "aud";
