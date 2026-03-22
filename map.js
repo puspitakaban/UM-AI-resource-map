@@ -369,6 +369,10 @@ document.getElementById("right-sidebar").addEventListener("click", (e) => {
   e.stopPropagation();
 });
 
+document.getElementById("right-sidebar").addEventListener("wheel", (e) => {
+  e.stopPropagation();
+});
+
 map.on("click", () => {
   closeRightSidebar();
 });
