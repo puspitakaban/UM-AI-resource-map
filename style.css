@@ -21,7 +21,10 @@ body {
   font-size: 13px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;        /* ← contain content */
 }
+
+
 
 #left-sidebar h2 {
   color: #FFCB05;
@@ -45,6 +48,10 @@ body {
 /* Filter */
 #filter-section {
   margin-top: 10px;
+  margin-bottom: 16px;     /* ← add space below filter */
+  overflow-y: auto;
+  flex-shrink: 1;
+  min-height: 0;
 }
 
 .filter-list-label {
