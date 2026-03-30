@@ -328,6 +328,7 @@ fetch("map-data/um-building-footprint-edited.geojson")
                         <span>${p.resource_name || "Unknown"}</span>
                       </div>
                       <div class="toggle-card-body" id="card-${i}" style="display:none;">
+                      <div class="info-desc">${p.description || ""}</div>
                         <div class="info-row"><span class="info-label">Address</span>${p.address || ""}</div>
                         <div class="info-row"><span class="info-label">Email</span><a href="mailto:${p.email}">${p.email || ""}</a></div>
                         <div class="info-row"><span class="info-label">Website</span><a href="${p.url}" target="_blank">${p.url || ""}</a></div>
@@ -343,7 +344,7 @@ fetch("map-data/um-building-footprint-edited.geojson")
                             ${resourceAudiences.map((s) => `<span class="filter-tag">${s}</span>`).join("")}
                           </div>
                         </div>
-                        <div class="info-desc">${p.description || ""}</div>
+                        
                       </div>
                     </div>
                   `;
