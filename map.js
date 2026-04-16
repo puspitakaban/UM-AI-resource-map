@@ -375,17 +375,19 @@ map.on("click", () => {
 
 /* ── Campus extents ── */
 const extents = {
-  central: { center: [42.278642, -83.736033], zoom: 16 },
-  north: { center: [42.29504, -83.709576], zoom: 16 },
-  dearborn: { center: [42.319058, -83.231381], zoom: 16 },
-  flint: { center: [43.019819, -83.689921], zoom: 16 },
+  central:  L.latLngBounds([[42.27134, -83.74462], [42.28563, -83.72599]]),
+  north:    L.latLngBounds([[42.28709, -83.72638], [42.30544, -83.68999]]),
+  dearborn: L.latLngBounds([[42.31125, -83.24184], [42.32552, -83.21735]]),
+  flint:    L.latLngBounds([[43.01624, -83.69602], [43.02329, -83.68348]]),
 };
 
 function goTo(key, btn) {
-  const e = extents[key];
-  map.flyTo(e.center, e.zoom, { duration: 1.5 });
-  document
-    .querySelectorAll("#extent-buttons button")
+  map.flyToBounds(extents[key], {
+    paddingTopLeft: [10, 10],     
+    paddingBottomRight: [5, 5], 
+    duration: 1.5
+  });
+  document.querySelectorAll("#extent-buttons button")
     .forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
 }
